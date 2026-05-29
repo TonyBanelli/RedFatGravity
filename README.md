@@ -28,3 +28,9 @@ Development style:
 - do not refactor unrelated code
 - keep the game easy to understand
 - prioritize working MVP over perfection
+
+Publishing:
+- The game is a static site and can be hosted from the repository root.
+- `index.html` is the entry point.
+- `assets/audio/ambient-loop.mp3` is stored in the repository and loaded with a relative path.
+- For GitHub Pages, publish from the `master` branch and `/ (root)` folder.
