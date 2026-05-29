@@ -1,3 +1,25 @@
+:root {
+  --bg: #060812;
+  --bg-grid: rgba(128, 231, 255, 0.045);
+  --panel: #111426;
+  --panel-deep: #090b17;
+  --text: #f4f1ff;
+  --muted: #8da0bb;
+  --accent: #83f5ff;
+  --accent-2: #d68cff;
+  --warning: #ffd36a;
+  --danger: #ff6f9f;
+  --border: #d7cbff;
+  --shadow: #000000;
+  --mood: #83f5ff;
+  --mood-soft: rgba(131, 245, 255, 0.18);
+  --pixel-font: "Fixedsys", "Terminal", "Small Fonts", "Perfect DOS VGA 437", "Press Start 2P", "Pixelify Sans", "Silkscreen", "VT323", "Courier New", "Lucida Console", Monaco, monospace;
+  --pixel-text-shadow:
+    1px 0 0 #000000,
+    0 1px 0 #000000,
+    2px 2px 0 #000000;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -15,19 +37,35 @@ body {
   min-height: 100vh;
   overflow: hidden;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    #070812;
-  background-size: 24px 24px;
-  color: #fff7d6;
-  font-family: "Courier New", Courier, monospace;
+    linear-gradient(var(--bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
+    radial-gradient(circle at 50% 18%, var(--mood-soft), transparent 34%),
+    var(--bg);
+  background-size: 24px 24px, 24px 24px, 100% 100%, 100% 100%;
+  color: var(--text);
+  font-family: var(--pixel-font);
+  font-synthesis: none;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
   text-transform: uppercase;
+}
+
+body.gravity-up {
+  --mood: #d68cff;
+  --mood-soft: rgba(214, 140, 255, 0.18);
+  --accent: #d68cff;
+  --accent-2: #83f5ff;
 }
 
 button {
   border: 0;
   cursor: pointer;
-  font: inherit;
+  font-family: var(--pixel-font);
+  font-weight: 400;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 
@@ -49,12 +87,15 @@ button {
 
 .game-hud h1 {
   margin: 0;
-  color: #ffdf5d;
+  color: var(--warning);
   font-size: clamp(1.3rem, 4vw, 2rem);
   font-weight: 800;
   letter-spacing: 0;
   text-align: center;
-  text-shadow: 3px 3px 0 #4b245f;
+  text-shadow:
+    2px 0 0 #000000,
+    0 2px 0 #000000,
+    4px 4px 0 #3a244f;
   white-space: nowrap;
 }
 
@@ -69,18 +110,18 @@ button {
 }
 
 .hud-label {
-  color: #81e6ff;
+  color: var(--muted);
   font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-shadow: var(--pixel-text-shadow);
 }
 
 .hud-value {
-  color: #ff6b9d;
+  color: var(--mood);
   font-size: 1.1rem;
-  font-weight: 800;
-  text-shadow: 2px 2px 0 #301731;
+  font-weight: 400;
+  text-shadow: var(--pixel-text-shadow);
 }
 
 .canvas-wrap {
@@ -95,11 +136,12 @@ button {
   width: 100%;
   max-height: 100%;
   aspect-ratio: 3 / 4;
-  border: 4px solid #fff7d6;
-  background: #15162a;
+  border: 4px solid var(--border);
+  background: var(--panel);
   box-shadow:
-    0 0 0 4px #171024,
-    10px 10px 0 #000000;
+    0 0 0 4px var(--panel-deep),
+    0 0 22px var(--mood-soft),
+    10px 10px 0 var(--shadow);
   image-rendering: pixelated;
 }
 
@@ -108,19 +150,48 @@ button {
   top: 20px;
   left: 50%;
   z-index: 1;
+  width: max-content;
+  max-width: calc(100% - 40px);
   padding: 8px 12px;
-  border: 3px solid #ffdf5d;
-  background: #171024;
-  color: #ff6b9d;
+  border: 3px solid var(--warning);
+  background: var(--panel-deep);
+  color: var(--danger);
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 400;
   text-align: center;
-  text-shadow: 2px 2px 0 #301731;
+  text-shadow: var(--pixel-text-shadow);
   transform: translateX(-50%);
-  box-shadow: 4px 4px 0 #000000;
+  box-shadow:
+    0 0 16px rgba(255, 111, 159, 0.2),
+    4px 4px 0 var(--shadow);
 }
 
 .gravity-warning.hidden {
+  display: none;
+}
+
+.speed-warning {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  padding: 8px 12px;
+  border: 3px solid var(--danger);
+  background: var(--panel-deep);
+  color: var(--warning);
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-align: center;
+  text-shadow: var(--pixel-text-shadow);
+  transform: translateX(-50%);
+  box-shadow:
+    0 0 16px rgba(255, 211, 106, 0.2),
+    4px 4px 0 var(--shadow);
+}
+
+.speed-warning.hidden {
   display: none;
 }
 
@@ -131,7 +202,7 @@ button {
   display: grid;
   place-items: center;
   padding: 22px;
-  background: rgba(7, 8, 18, 0.78);
+  background: rgba(6, 8, 18, 0.78);
 }
 
 .game-over.hidden {
@@ -141,32 +212,37 @@ button {
 .game-over-panel {
   width: min(100%, 280px);
   padding: 24px;
-  border: 4px solid #fff7d6;
-  background: #171024;
+  border: 4px solid var(--border);
+  background: var(--panel-deep);
   text-align: center;
-  box-shadow: 8px 8px 0 #000000;
+  box-shadow: 8px 8px 0 var(--shadow);
 }
 
 .game-over-panel h2 {
   margin: 0 0 8px;
-  color: #ffdf5d;
+  color: var(--warning);
   font-size: 1.7rem;
-  text-shadow: 3px 3px 0 #4b245f;
+  font-weight: 400;
+  text-shadow:
+    2px 0 0 #000000,
+    0 2px 0 #000000,
+    4px 4px 0 #3a244f;
 }
 
 .game-over-panel p {
   margin: 0 0 18px;
-  color: #81e6ff;
+  color: var(--accent);
 }
 
 #restartButton {
   width: 100%;
   min-height: 44px;
-  border: 3px solid #171024;
-  background: #ffdf5d;
-  color: #171024;
-  font-weight: 800;
-  box-shadow: 4px 4px 0 #000000;
+  border: 3px solid var(--panel-deep);
+  background: var(--warning);
+  color: var(--panel-deep);
+  font-weight: 400;
+  text-shadow: none;
+  box-shadow: 4px 4px 0 var(--shadow);
 }
 
 .game-controls {
@@ -178,20 +254,21 @@ button {
   min-width: 128px;
   min-height: 40px;
   padding: 0 18px;
-  border: 3px solid #fff7d6;
-  background: #171024;
-  color: #81e6ff;
-  font-weight: 700;
-  box-shadow: 5px 5px 0 #000000;
+  border: 3px solid var(--border);
+  background: var(--panel-deep);
+  color: var(--accent);
+  font-weight: 400;
+  text-shadow: var(--pixel-text-shadow);
+  box-shadow: 5px 5px 0 var(--shadow);
 }
 
 button:hover {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 #000000;
+  box-shadow: 2px 2px 0 var(--shadow);
 }
 
 button:focus-visible {
-  outline: 3px solid #ff6b9d;
+  outline: 3px solid var(--danger);
   outline-offset: 3px;
 }
 
