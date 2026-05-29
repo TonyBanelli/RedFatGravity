@@ -10,6 +10,7 @@ const speedWarning = document.getElementById("speedWarning");
 const gameOverOverlay = document.getElementById("gameOverOverlay");
 const restartButton = document.getElementById("restartButton");
 const musicToggle = document.getElementById("musicToggle");
+const ambientMusic = document.getElementById("ambientMusic");
 
 const player = {
   x: canvas.width / 2,
@@ -38,12 +39,15 @@ const game = {
   isMusicOn: false,
   lastObstacleSpawn: 0,
   speedWarningUntil: 0,
+  gravityPhaseStart: 0,
+  gravityPhaseDuration: 0,
   nextGravityPhaseEnd: 0,
   isPreparingGravitySwitch: false,
   animationFrameId: null
 };
 
 const obstacles = [];
+const stars = createStars(72);
 
 const palette = {
   down: {
@@ -58,6 +62,10 @@ const palette = {
     barrier: "#51467d",
     barrierEdge: "#8a7cc1",
     barrierGlow: "#b8d9ff",
+    dayBackground: "#8a6f4d",
+    dayGrid: "#b69462",
+    daySpeck: "#6f603f",
+    dayGlow: "255, 211, 106",
     shadow: "#090b17"
   },
   up: {
@@ -72,6 +80,10 @@ const palette = {
     barrier: "#433b70",
     barrierEdge: "#9473b8",
     barrierGlow: "#e2c2ff",
+    dayBackground: "#7b5b62",
+    dayGrid: "#ad8270",
+    daySpeck: "#67475a",
+    dayGlow: "255, 188, 116",
     shadow: "#090b17"
   }
 };
@@ -91,12 +103,63 @@ function getObstacleSpawnInterval() {
   return baseDistance / game.obstacleSpeed;
 }
 
+function lerp(start, end, amount) {
+  return start + (end - start) * amount;
+}
+
+function mixHexColors(startColor, endColor, amount) {
+  const start = parseInt(startColor.slice(1), 16);
+  const end = parseInt(endColor.slice(1), 16);
+  const startRed = (start >> 16) & 255;
+  const startGreen = (start >> 8) & 255;
+  const startBlue = start & 255;
+  const endRed = (end >> 16) & 255;
+  const endGreen = (end >> 8) & 255;
+  const endBlue = end & 255;
+  const red = Math.round(lerp(startRed, endRed, amount));
+  const green = Math.round(lerp(startGreen, endGreen, amount));
+  const blue = Math.round(lerp(startBlue, endBlue, amount));
+
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function getDayNightAmount(timestamp) {
+  if (game.gravityPhaseDuration <= 0) {
+    return 0;
+  }
+
+  const progress = Math.min(
+    1,
+    Math.max(0, (timestamp - game.gravityPhaseStart) / game.gravityPhaseDuration)
+  );
+
+  return game.completedPhases % 2 === 0 ? progress : 1 - progress;
+}
+
+function createStars(count) {
+  const generatedStars = [];
+
+  for (let index = 0; index < count; index += 1) {
+    generatedStars.push({
+      x: Math.floor(Math.random() * canvas.width),
+      y: Math.floor(Math.random() * (canvas.height - 96)),
+      size: Math.random() > 0.78 ? 3 : 2,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.0024 + Math.random() * 0.0028
+    });
+  }
+
+  return generatedStars;
+}
+
 function getRandomGravityPhaseDuration() {
   return game.gravityPhaseMin + Math.random() * (game.gravityPhaseMax - game.gravityPhaseMin);
 }
 
 function startGravityPhase(timestamp) {
-  game.nextGravityPhaseEnd = timestamp + getRandomGravityPhaseDuration();
+  game.gravityPhaseStart = timestamp;
+  game.gravityPhaseDuration = getRandomGravityPhaseDuration();
+  game.nextGravityPhaseEnd = timestamp + game.gravityPhaseDuration;
   game.lastObstacleSpawn = timestamp;
   game.isPreparingGravitySwitch = false;
   gravityWarning.classList.add("hidden");
@@ -254,35 +317,137 @@ function endGame() {
   gameOverOverlay.classList.remove("hidden");
 }
 
-function drawBackground() {
+function drawBackground(timestamp) {
   const mood = getMoodPalette();
+  const dayNightAmount = getDayNightAmount(timestamp);
 
-  ctx.fillStyle = mood.background;
+  ctx.fillStyle = mixHexColors(mood.background, mood.dayBackground, dayNightAmount);
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = mood.grid;
+  drawStars(mood, timestamp, dayNightAmount);
+  drawCyberGrid(mood, dayNightAmount);
+
+  drawPlanetSurface(mood);
+}
+
+function drawCyberGrid(mood, dayNightAmount) {
+  const gridColor = mixHexColors(mood.grid, mood.dayGrid, dayNightAmount);
+  const alpha = 0.12 - dayNightAmount * 0.04;
+
+  ctx.strokeStyle = gridColor;
+  ctx.globalAlpha = alpha;
   ctx.lineWidth = 1;
 
-  for (let y = 32; y < canvas.height; y += 32) {
+  for (let y = 40; y < canvas.height - 96; y += 40) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(canvas.width, y);
     ctx.stroke();
   }
 
-  for (let x = 32; x < canvas.width; x += 32) {
+  for (let x = 40; x < canvas.width; x += 40) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
+    ctx.lineTo(x, canvas.height - 96);
     ctx.stroke();
   }
 
-  ctx.fillStyle = mood.speck;
-  for (let y = 16; y < canvas.height; y += 64) {
-    for (let x = 16; x < canvas.width; x += 64) {
-      ctx.fillRect(x, y, 4, 4);
+  ctx.globalAlpha = 1;
+}
+
+function drawStars(mood, timestamp, dayNightAmount) {
+  for (const star of stars) {
+    const twinkle = 0.5 + Math.sin(timestamp * star.speed + star.phase) * 0.5;
+    const starVisibility = 1 - dayNightAmount * 0.35;
+    const starAlpha = (0.18 + twinkle * 0.72) * starVisibility;
+
+    ctx.fillStyle = `rgba(244, 241, 255, ${starAlpha})`;
+    ctx.fillRect(star.x, star.y, star.size, star.size);
+
+    if (star.size > 2) {
+      ctx.fillStyle = game.gravityDirection === 1
+        ? `rgba(131, 245, 255, ${(0.14 + twinkle * 0.36) * starVisibility})`
+        : `rgba(214, 140, 255, ${(0.14 + twinkle * 0.36) * starVisibility})`;
+      ctx.fillRect(star.x - 2, star.y + 1, 1, 1);
+      ctx.fillRect(star.x + star.size + 1, star.y + 1, 1, 1);
+      ctx.fillRect(star.x + 1, star.y - 2, 1, 1);
+      ctx.fillRect(star.x + 1, star.y + star.size + 1, 1, 1);
     }
   }
+
+  const glowAlpha = 0.04 + dayNightAmount * 0.18;
+  ctx.fillStyle = `rgba(${mood.dayGlow}, ${glowAlpha})`;
+  ctx.fillRect(0, 0, canvas.width, 128);
+
+  if (dayNightAmount > 0.35) {
+    const sunAlpha = (dayNightAmount - 0.35) / 0.65;
+    ctx.fillStyle = `rgba(255, 224, 132, ${0.14 * sunAlpha})`;
+    ctx.fillRect(canvas.width - 118, 34, 56, 56);
+    ctx.fillStyle = `rgba(255, 246, 184, ${0.22 * sunAlpha})`;
+    ctx.fillRect(canvas.width - 102, 50, 24, 24);
+  }
+}
+
+function drawPlanetSurface(mood) {
+  const surfaceY = canvas.height - 86;
+  const terrain = [
+    [0, 12],
+    [34, 4],
+    [72, 10],
+    [116, -2],
+    [158, 8],
+    [202, 0],
+    [244, 14],
+    [286, 5],
+    [330, 11],
+    [374, -3],
+    [420, 8],
+    [480, 2]
+  ];
+
+  ctx.fillStyle = "#0a0c18";
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height);
+  ctx.lineTo(0, surfaceY + terrain[0][1]);
+
+  for (const point of terrain) {
+    ctx.lineTo(point[0], surfaceY + point[1]);
+  }
+
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = game.gravityDirection === 1 ? "#171d32" : "#1d1732";
+  ctx.fillRect(0, surfaceY + 28, canvas.width, 58);
+
+  ctx.fillStyle = mood.grid;
+  for (const point of terrain) {
+    ctx.fillRect(point[0], surfaceY + point[1], 36, 4);
+  }
+
+  const craters = [
+    { x: 48, y: surfaceY + 48, width: 42, height: 10 },
+    { x: 166, y: surfaceY + 58, width: 58, height: 12 },
+    { x: 306, y: surfaceY + 42, width: 48, height: 10 },
+    { x: 396, y: surfaceY + 64, width: 36, height: 8 }
+  ];
+
+  for (const crater of craters) {
+    ctx.fillStyle = "#070812";
+    ctx.fillRect(crater.x, crater.y, crater.width, crater.height);
+    ctx.fillStyle = mood.speck;
+    ctx.fillRect(crater.x + 6, crater.y - 4, crater.width - 12, 4);
+    ctx.fillStyle = mood.grid;
+    ctx.fillRect(crater.x + 10, crater.y + crater.height, crater.width - 20, 3);
+  }
+
+  ctx.fillStyle = game.gravityDirection === 1 ? "#222b49" : "#2b2248";
+  ctx.fillRect(18, surfaceY + 68, 18, 6);
+  ctx.fillRect(108, surfaceY + 38, 26, 6);
+  ctx.fillRect(258, surfaceY + 70, 22, 6);
+  ctx.fillRect(360, surfaceY + 30, 18, 6);
+  ctx.fillRect(438, surfaceY + 52, 30, 6);
 }
 
 function drawPlayer() {
@@ -380,19 +545,46 @@ function drawObstacles() {
     ctx.fillRect(x - 6, obstacle.gapY - 12, obstacle.width + 12, 18);
     ctx.fillRect(x - 6, bottomPipeY, obstacle.width + 12, 18);
 
-    ctx.fillStyle = mood.barrierGlow;
-    for (let y = 20; y < obstacle.gapY - 24; y += 42) {
-      ctx.fillRect(x + 24, y, 18, 4);
-    }
+    drawBarrierPixels(x, 0, obstacle.width, obstacle.gapY, mood);
+    drawBarrierPixels(x, bottomPipeY, obstacle.width, canvas.height - bottomPipeY, mood);
+  }
+}
 
-    for (let y = bottomPipeY + 26; y < canvas.height - 20; y += 42) {
-      ctx.fillRect(x + 24, y, 18, 4);
+function drawBarrierPixels(x, y, width, height, mood) {
+  if (height <= 28) {
+    return;
+  }
+
+  const pattern = [
+    [18, 18, 8, 8],
+    [46, 34, 12, 10],
+    [30, 62, 6, 14],
+    [54, 92, 10, 8],
+    [14, 120, 14, 12],
+    [40, 152, 8, 8],
+    [24, 188, 12, 6],
+    [52, 224, 6, 12]
+  ];
+
+  for (const pixel of pattern) {
+    for (let offsetY = pixel[1]; offsetY < height - 14; offsetY += 246) {
+      const blockX = x + Math.min(pixel[0], width - pixel[2] - 8);
+      const blockY = y + offsetY;
+
+      ctx.fillStyle = mood.barrierEdge;
+      ctx.globalAlpha = 0.45;
+      ctx.fillRect(blockX, blockY, pixel[2], pixel[3]);
+
+      ctx.fillStyle = mood.barrierGlow;
+      ctx.globalAlpha = 0.28;
+      ctx.fillRect(blockX + 2, blockY + 2, Math.max(2, pixel[2] - 4), Math.max(2, pixel[3] - 4));
+      ctx.globalAlpha = 1;
     }
   }
 }
 
-function draw() {
-  drawBackground();
+function draw(timestamp) {
+  drawBackground(timestamp);
   drawObstacles();
   drawPlayer();
 }
@@ -405,7 +597,7 @@ function gameLoop(timestamp) {
     checkObstacleCollisions();
   }
 
-  draw();
+  draw(timestamp);
 
   if (!game.isGameOver) {
     game.animationFrameId = requestAnimationFrame(gameLoop);
@@ -413,8 +605,26 @@ function gameLoop(timestamp) {
 }
 
 function toggleMusic() {
+  if (!ambientMusic) {
+    game.isMusicOn = false;
+    musicToggle.textContent = "Music: Off";
+    musicToggle.setAttribute("aria-pressed", "false");
+    return;
+  }
+
   game.isMusicOn = !game.isMusicOn;
-  musicToggle.textContent = game.isMusicOn ? "Music On" : "Music Off";
+
+  if (game.isMusicOn) {
+    ambientMusic.play().catch(() => {
+      game.isMusicOn = false;
+      musicToggle.textContent = "Music: Off";
+      musicToggle.setAttribute("aria-pressed", "false");
+    });
+  } else {
+    ambientMusic.pause();
+  }
+
+  musicToggle.textContent = game.isMusicOn ? "Music: On" : "Music: Off";
   musicToggle.setAttribute("aria-pressed", String(game.isMusicOn));
 }
 
