@@ -103,9 +103,31 @@ button {
   image-rendering: pixelated;
 }
 
+.gravity-warning {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  z-index: 1;
+  padding: 8px 12px;
+  border: 3px solid #ffdf5d;
+  background: #171024;
+  color: #ff6b9d;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: center;
+  text-shadow: 2px 2px 0 #301731;
+  transform: translateX(-50%);
+  box-shadow: 4px 4px 0 #000000;
+}
+
+.gravity-warning.hidden {
+  display: none;
+}
+
 .game-over {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
   padding: 22px;

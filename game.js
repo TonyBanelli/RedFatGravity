@@ -5,6 +5,7 @@ ctx.imageSmoothingEnabled = false;
 const scoreElement = document.getElementById("score");
 const finalScoreElement = document.getElementById("finalScore");
 const gravityIndicator = document.getElementById("gravityIndicator");
+const gravityWarning = document.getElementById("gravityWarning");
 const gameOverOverlay = document.getElementById("gameOverOverlay");
 const restartButton = document.getElementById("restartButton");
 const musicToggle = document.getElementById("musicToggle");
@@ -19,19 +20,39 @@ const player = {
 
 const game = {
   gravity: 0.34,
-  lift: -7.2,
+  impulse: 7.2,
+  gravityDirection: 1,
+  gravityPhaseMin: 10000,
+  gravityPhaseMax: 15000,
+  gravityWarningDuration: 1000,
+  baseObstacleSpeed: 2.8,
   obstacleSpeed: 2.8,
+  speedIncreaseRate: 1.5,
   obstacleWidth: 72,
   obstacleGap: 213,
   obstacleSpawnInterval: 2000,
   score: 0,
+  completedPhases: 0,
   isGameOver: false,
   isMusicOn: false,
   lastObstacleSpawn: 0,
+  nextGravityPhaseEnd: 0,
+  isPreparingGravitySwitch: false,
   animationFrameId: null
 };
 
 const obstacles = [];
+
+function getRandomGravityPhaseDuration() {
+  return game.gravityPhaseMin + Math.random() * (game.gravityPhaseMax - game.gravityPhaseMin);
+}
+
+function startGravityPhase(timestamp) {
+  game.nextGravityPhaseEnd = timestamp + getRandomGravityPhaseDuration();
+  game.lastObstacleSpawn = timestamp;
+  game.isPreparingGravitySwitch = false;
+  gravityWarning.classList.add("hidden");
+}
 
 function resetGame() {
   player.x = canvas.width / 2;
@@ -40,13 +61,18 @@ function resetGame() {
   player.glowPulse = 0;
 
   game.score = 0;
+  game.completedPhases = 0;
+  game.obstacleSpeed = game.baseObstacleSpeed;
   game.isGameOver = false;
   game.lastObstacleSpawn = performance.now();
+  game.gravityDirection = 1;
+  startGravityPhase(game.lastObstacleSpawn);
   obstacles.length = 0;
 
   scoreElement.textContent = game.score;
   finalScoreElement.textContent = game.score;
-  gravityIndicator.textContent = "Down";
+  gravityIndicator.textContent = "Gravity ↓";
+  gravityWarning.classList.add("hidden");
   gameOverOverlay.classList.add("hidden");
 
   cancelAnimationFrame(game.animationFrameId);
@@ -59,12 +85,38 @@ function flap() {
     return;
   }
 
-  player.velocityY = game.lift;
+  player.velocityY = -game.gravityDirection * game.impulse;
   player.glowPulse = 1;
 }
 
+function updateGravity(timestamp) {
+  if (!game.isPreparingGravitySwitch && timestamp >= game.nextGravityPhaseEnd) {
+    game.isPreparingGravitySwitch = true;
+    gravityWarning.classList.remove("hidden");
+  }
+
+  if (game.isPreparingGravitySwitch && obstacles.length === 0) {
+    game.gravityDirection *= -1;
+    game.completedPhases += 1;
+
+    if (game.completedPhases % 2 === 0) {
+      game.obstacleSpeed *= game.speedIncreaseRate;
+    }
+
+    gravityIndicator.textContent = game.gravityDirection === 1 ? "Gravity ↓" : "Gravity ↑";
+    startGravityPhase(timestamp);
+    return;
+  }
+
+  const timeUntilSwitch = game.nextGravityPhaseEnd - timestamp;
+  const shouldShowWarning = game.isPreparingGravitySwitch ||
+    timeUntilSwitch <= game.gravityWarningDuration;
+
+  gravityWarning.classList.toggle("hidden", !shouldShowWarning);
+}
+
 function updatePlayer() {
-  player.velocityY += game.gravity;
+  player.velocityY += game.gravity * game.gravityDirection;
   player.y += player.velocityY;
   player.glowPulse = Math.max(0, player.glowPulse - 0.055);
 
@@ -88,7 +140,10 @@ function createObstacle() {
 }
 
 function updateObstacles(timestamp) {
-  if (timestamp - game.lastObstacleSpawn >= game.obstacleSpawnInterval) {
+  if (
+    !game.isPreparingGravitySwitch &&
+    timestamp - game.lastObstacleSpawn >= game.obstacleSpawnInterval
+  ) {
     createObstacle();
     game.lastObstacleSpawn = timestamp;
   }
@@ -192,7 +247,7 @@ function drawPlayer() {
   ];
 
   if (player.glowPulse > 0) {
-    const movementDirection = Math.sign(player.velocityY || game.lift);
+    const movementDirection = Math.sign(player.velocityY || -game.gravityDirection);
     const glowOffsetY = -movementDirection * 34;
 
     for (const step of glowSteps) {
@@ -262,6 +317,7 @@ function draw() {
 
 function gameLoop(timestamp) {
   if (!game.isGameOver) {
+    updateGravity(timestamp);
     updatePlayer();
     updateObstacles(timestamp);
     checkObstacleCollisions();
