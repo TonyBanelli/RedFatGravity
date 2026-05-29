@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flappy Gravity</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="game-shell" aria-label="Flappy Gravity game">
+    <header class="game-hud">
+      <div class="hud-item">
+        <span class="hud-label">Score</span>
+        <span id="score" class="hud-value">0</span>
+      </div>
+      <h1>Flappy Gravity</h1>
+      <div class="hud-item hud-item-right">
+        <span class="hud-label">Gravity</span>
+        <span id="gravityIndicator" class="hud-value">Down</span>
+      </div>
+    </header>
+
+    <section class="canvas-wrap" aria-live="polite">
+      <canvas id="gameCanvas" width="480" height="640"></canvas>
+
+      <div id="gameOverOverlay" class="game-over hidden">
+        <div class="game-over-panel">
+          <h2>Game Over</h2>
+          <p>Final score: <span id="finalScore">0</span></p>
+          <button id="restartButton" type="button">Restart</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="game-controls">
+      <button id="musicToggle" class="secondary-button" type="button" aria-pressed="false">
+        Music Off
+      </button>
+    </footer>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
