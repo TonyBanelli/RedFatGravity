@@ -132,6 +132,7 @@ button {
   width: 100%;
   height: min(70vh, 640px);
   min-height: 0;
+  touch-action: none;
 }
 
 #gameCanvas {
@@ -147,6 +148,9 @@ button {
     0 0 22px var(--mood-soft),
     10px 10px 0 var(--shadow);
   image-rendering: pixelated;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .gravity-warning {

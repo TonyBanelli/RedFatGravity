@@ -635,7 +635,10 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-canvas.addEventListener("pointerdown", flap);
+canvas.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  flap();
+});
 restartButton.addEventListener("click", resetGame);
 musicToggle.addEventListener("click", toggleMusic);
 
