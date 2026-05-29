@@ -18,12 +18,18 @@ const player = {
 const game = {
   gravity: 0.34,
   lift: -7.2,
+  obstacleSpeed: 2.8,
+  obstacleWidth: 72,
+  obstacleGap: 170,
+  obstacleSpawnInterval: 1500,
   score: 0,
   isGameOver: false,
   isMusicOn: false,
-  lastScoreTime: 0,
+  lastObstacleSpawn: 0,
   animationFrameId: null
 };
+
+const obstacles = [];
 
 function resetGame() {
   player.x = canvas.width / 2;
@@ -32,7 +38,8 @@ function resetGame() {
 
   game.score = 0;
   game.isGameOver = false;
-  game.lastScoreTime = performance.now();
+  game.lastObstacleSpawn = performance.now();
+  obstacles.length = 0;
 
   scoreElement.textContent = game.score;
   finalScoreElement.textContent = game.score;
@@ -40,7 +47,7 @@ function resetGame() {
   gameOverOverlay.classList.add("hidden");
 
   cancelAnimationFrame(game.animationFrameId);
-  gameLoop(game.lastScoreTime);
+  gameLoop(game.lastObstacleSpawn);
 }
 
 function flap() {
@@ -52,25 +59,79 @@ function flap() {
   player.velocityY = game.lift;
 }
 
-function updateScore(timestamp) {
-  if (timestamp - game.lastScoreTime >= 1000) {
-    game.score += 1;
-    game.lastScoreTime = timestamp;
-    scoreElement.textContent = game.score;
-  }
-}
-
 function updatePlayer() {
   player.velocityY += game.gravity;
   player.y += player.velocityY;
 
-  if (player.y - player.radius <= 0) {
-    player.y = player.radius;
-    player.velocityY = 0;
+  if (player.y - player.radius <= 0 || player.y + player.radius >= canvas.height) {
+    endGame();
+  }
+}
+
+function createObstacle() {
+  const minimumGapY = 90;
+  const maximumGapY = canvas.height - game.obstacleGap - minimumGapY;
+  const gapY = minimumGapY + Math.random() * (maximumGapY - minimumGapY);
+
+  obstacles.push({
+    x: canvas.width,
+    width: game.obstacleWidth,
+    gapY,
+    gapHeight: game.obstacleGap,
+    passed: false
+  });
+}
+
+function updateObstacles(timestamp) {
+  if (timestamp - game.lastObstacleSpawn >= game.obstacleSpawnInterval) {
+    createObstacle();
+    game.lastObstacleSpawn = timestamp;
   }
 
-  if (player.y + player.radius >= canvas.height) {
-    endGame();
+  for (let index = obstacles.length - 1; index >= 0; index -= 1) {
+    const obstacle = obstacles[index];
+    obstacle.x -= game.obstacleSpeed;
+
+    if (!obstacle.passed && obstacle.x + obstacle.width < player.x - player.radius) {
+      obstacle.passed = true;
+      game.score += 1;
+      scoreElement.textContent = game.score;
+    }
+
+    if (obstacle.x + obstacle.width < 0) {
+      obstacles.splice(index, 1);
+    }
+  }
+}
+
+function circleIntersectsRect(circle, rect) {
+  const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+  const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+  const distanceX = circle.x - closestX;
+  const distanceY = circle.y - closestY;
+
+  return distanceX * distanceX + distanceY * distanceY <= circle.radius * circle.radius;
+}
+
+function checkObstacleCollisions() {
+  for (const obstacle of obstacles) {
+    const topPipe = {
+      x: obstacle.x,
+      y: 0,
+      width: obstacle.width,
+      height: obstacle.gapY
+    };
+    const bottomPipe = {
+      x: obstacle.x,
+      y: obstacle.gapY + obstacle.gapHeight,
+      width: obstacle.width,
+      height: canvas.height - obstacle.gapY - obstacle.gapHeight
+    };
+
+    if (circleIntersectsRect(player, topPipe) || circleIntersectsRect(player, bottomPipe)) {
+      endGame();
+      return;
+    }
   }
 }
 
@@ -106,15 +167,31 @@ function drawPlayer() {
   ctx.stroke();
 }
 
+function drawObstacles() {
+  for (const obstacle of obstacles) {
+    const bottomPipeY = obstacle.gapY + obstacle.gapHeight;
+
+    ctx.fillStyle = "#4ade80";
+    ctx.fillRect(obstacle.x, 0, obstacle.width, obstacle.gapY);
+    ctx.fillRect(obstacle.x, bottomPipeY, obstacle.width, canvas.height - bottomPipeY);
+
+    ctx.fillStyle = "#86efac";
+    ctx.fillRect(obstacle.x - 6, obstacle.gapY - 18, obstacle.width + 12, 18);
+    ctx.fillRect(obstacle.x - 6, bottomPipeY, obstacle.width + 12, 18);
+  }
+}
+
 function draw() {
   drawBackground();
+  drawObstacles();
   drawPlayer();
 }
 
 function gameLoop(timestamp) {
   if (!game.isGameOver) {
     updatePlayer();
-    updateScore(timestamp);
+    updateObstacles(timestamp);
+    checkObstacleCollisions();
   }
 
   draw();
